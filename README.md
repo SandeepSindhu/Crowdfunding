@@ -1,66 +1,85 @@
-## Foundry
+# 🚀 Decentralized Crowdfunding Platform
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+An EVM-compatible crowdfunding smart contract system that implements an **all-or-nothing** funding model entirely on-chain. Built with Solidity `^0.8.20` and tested, benchmarked, and deployed using the **Foundry** toolchain.
 
-Foundry consists of:
+---
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+## 📋 Table of Contents
+- [Overview](#-overview)
+- [Core Architecture & Mechanics](#-core-architecture--mechanics)
+- [Security Implementations](#-security-implementations)
+- [Project Layout](#-project-layout)
+- [Getting Started](#-getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Build](#build)
+- [Testing & Quality Assurance](#-testing--quality-assurance)
+  - [Running Tests](#running-tests)
+  - [Gas Benchmarking](#gas-benchmarking)
+  - [Test Coverage](#test-coverage)
+- [Deployment Guide](#-deployment-guide)
+  - [Local Deployment (Anvil)](#local-deployment-anvil)
+  - [Testnet Deployment (Sepolia)](#testnet-deployment-sepolia)
+- [Contract Interface & Functions](#-contract-interface--functions)
+- [License](#-license)
 
-## Documentation
+---
 
-https://book.getfoundry.sh/
+## 💡 Overview
 
-## Usage
+This project provides a trustless, intermediary-free crowdfunding protocol where creators can launch funding campaigns with specific financial targets and timelines. 
 
-### Build
+- **Target Met:** If the funding goal is reached before the deadline, the creator can withdraw 100% of the pooled ETH.
+- **Target Missed:** If the deadline lapses without reaching the goal, the campaign enters a refund state, allowing individual backers to claim their entire contribution back trustlessly.
 
-```shell
-$ forge build
-```
+---
 
-### Test
+## ⚙️ Core Architecture & Mechanics
 
-```shell
-$ forge test
-```
++-----------------------+
+             |  createCampaign(...)  |
+             +-----------+-----------+
+                         |
+                         v
+             +-----------------------+
+             |     Active Campaign   |<------- contribute{value: ...}()
+             +-----------+-----------+
+                         |
+               Deadline Reached?
+                         |
+         +---------------+---------------+
+         |                               |
+         v                               v
+Goal Reached (>= goal)         Goal Failed (< goal)
+         |                               |
+         v                               v
++-----------------+             +------------------+
+|  claimFunds()   |             |  claimRefund()   |
+| (Creator Only)  |             |  (Backers Pull)  |
++-----------------+             +------------------+
 
-### Format
+1. **Multi-Campaign Registry**: Multiple campaigns run independently within a single deployed contract instance, saving gas compared to a factory-cloning architecture.
+2. **Pull-Over-Push Payments**: Refunds are claimed by individual backers rather than iterated via a loop. This avoids block gas limit exhaustion (Denial of Service) attacks.
+3. **Time-Warping Validation**: Uses strict Unix timestamp checks (`block.timestamp`) to evaluate campaign active status vs. settlement phase.
 
-```shell
-$ forge fmt
-```
+---
 
-### Gas Snapshots
+## 🔒 Security Implementations
 
-```shell
-$ forge snapshot
-```
+* **Checks-Effects-Interactions (CEI)**: State variables (such as zeroing out contributor balances in `claimRefund`) are updated before any external ETH transfer occurs.
+* **Custom Reentrancy Guard**: State changes are protected against malicious fallback executions via a mutual exclusion lock (`nonReentrant` modifier).
+* **Native Transfer Safety**: Employs low-level call syntax (`call{value: ...}("")`) instead of deprecated `.transfer()` or `.send()`, ensuring forwards-compatibility with gas schedule adjustments.
 
-### Anvil
+---
 
-```shell
-$ anvil
-```
+## 📂 Project Layout
 
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+```text
+.
+├── foundry.toml                # Foundry configuration profile
+├── src
+│   └── Crowdfunding.sol        # Main platform smart contract
+├── script
+│   └── DeployCrowdfunding.s.sol# Deployment script
+└── test
+    └── Crowdfunding.t.sol      # Unit and fuzz testing suite
