@@ -36,27 +36,22 @@ This project provides a trustless, intermediary-free crowdfunding protocol where
 
 ## ⚙️ Core Architecture & Mechanics
 
-+-----------------------+
-             |  createCampaign(...)  |
-             +-----------+-----------+
-                         |
-                         v
-             +-----------------------+
-             |     Active Campaign   |<------- contribute{value: ...}()
-             +-----------+-----------+
-                         |
-               Deadline Reached?
-                         |
-         +---------------+---------------+
-         |                               |
-         v                               v
-Goal Reached (>= goal)         Goal Failed (< goal)
-         |                               |
-         v                               v
-+-----------------+             +------------------+
-|  claimFunds()   |             |  claimRefund()   |
-| (Creator Only)  |             |  (Backers Pull)  |
-+-----------------+             +------------------+
+```mermaid
+flowchart TD
+    A([createCampaign]) --> B[Active Campaign]
+    C([contribute with value]) -->|Pledge ETH| B
+    
+    B --> D{Deadline Reached?}
+    
+    D -->|Goal Reached: >= goal| E[claimFunds\nCreator Withdraws]
+    D -->|Goal Failed: < goal| F[claimRefund\nBackers Pull Refund]
+
+    style A fill:#2ea44f,stroke:#238636,color:#ffffff
+    style B fill:#1f6feb,stroke:#1158c7,color:#ffffff
+    style C fill:#8957e5,stroke:#6e40c9,color:#ffffff
+    style E fill:#238636,stroke:#2ea44f,color:#ffffff
+    style F fill:#da3633,stroke:#b62324,color:#ffffff
+```
 
 1. **Multi-Campaign Registry**: Multiple campaigns run independently within a single deployed contract instance, saving gas compared to a factory-cloning architecture.
 2. **Pull-Over-Push Payments**: Refunds are claimed by individual backers rather than iterated via a loop. This avoids block gas limit exhaustion (Denial of Service) attacks.
